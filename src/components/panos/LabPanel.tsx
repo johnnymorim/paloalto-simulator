@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Lab } from '@/data/labData';
 import { useLabValidator } from './LabStepValidator';
-import { ChevronRight, ChevronLeft, Lightbulb, CheckCircle2, Circle, X, ArrowRight } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Lightbulb, CheckCircle2, Circle, X, ArrowRight, Loader2 } from 'lucide-react';
 
 interface LabPanelProps {
   lab: Lab;
@@ -24,26 +24,37 @@ export const LabPanel = ({
   const step = lab.steps[currentStep];
   const allDone = completedSteps.size === lab.steps.length;
 
-  const handleCheck = () => {
-    const valid = validateStep(step, activeTab);
-    if (valid) {
-      onStepComplete(currentStep);
-      if (currentStep < lab.steps.length - 1) {
-        setTimeout(() => onStepChange(currentStep + 1), 400);
-      } else if (completedSteps.size === lab.steps.length - 1) {
-        setTimeout(() => onComplete(), 600);
-      }
-    }
-  };
+  // Live polling: auto-validate current step every 2 seconds
+  useEffect(() => {
+    if (completedSteps.has(currentStep)) return;
 
-  const handleMarkComplete = () => {
-    onStepComplete(currentStep);
-    if (currentStep < lab.steps.length - 1) {
-      setTimeout(() => onStepChange(currentStep + 1), 300);
-    } else if (completedSteps.size === lab.steps.length - 1) {
-      setTimeout(() => onComplete(), 500);
-    }
-  };
+    const checkValidation = () => {
+      const valid = validateStep(step, activeTab);
+      if (valid) {
+        onStepComplete(currentStep);
+        if (currentStep < lab.steps.length - 1) {
+          setTimeout(() => onStepChange(currentStep + 1), 500);
+        } else if (completedSteps.size === lab.steps.length - 1) {
+          setTimeout(() => onComplete(), 700);
+        }
+      }
+    };
+
+    // Check immediately
+    checkValidation();
+
+    // Then poll every 2 seconds
+    const interval = setInterval(checkValidation, 2000);
+    return () => clearInterval(interval);
+  }, [currentStep, step, activeTab, completedSteps, validateStep, onStepComplete, onStepChange, onComplete, lab.steps.length]);
+
+  // Reset hint when step changes
+  useEffect(() => {
+    setShowHint(false);
+  }, [currentStep]);
+
+  // Real-time validation status
+  const isCurrentStepValid = completedSteps.has(currentStep) || validateStep(step, activeTab);
 
   return (
     <div className="w-[340px] border-l flex flex-col h-full" style={{ background: 'hsl(0, 0%, 100%)', borderColor: 'hsl(210, 15%, 85%)' }}>
@@ -89,12 +100,47 @@ export const LabPanel = ({
 
       {/* Step content */}
       <div className="flex-1 overflow-auto p-3">
-        <div className="text-[10px] font-semibold mb-1" style={{ color: 'hsl(210, 10%, 50%)' }}>
-          STEP {currentStep + 1} OF {lab.steps.length}
+        <div className="flex items-center justify-between mb-1">
+          <div className="text-[10px] font-semibold" style={{ color: 'hsl(210, 10%, 50%)' }}>
+            STEP {currentStep + 1} OF {lab.steps.length}
+          </div>
+          {/* Real-time validation indicator */}
+          {!completedSteps.has(currentStep) && (
+            <div className="flex items-center gap-1">
+              {isCurrentStepValid ? (
+                <div className="flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded" style={{ background: 'hsl(100, 50%, 92%)', color: 'hsl(100, 50%, 30%)' }}>
+                  <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'hsl(100, 55%, 40%)' }} />
+                  PASS
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded" style={{ background: 'hsl(0, 50%, 95%)', color: 'hsl(0, 50%, 40%)' }}>
+                  <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                  WAITING
+                </div>
+              )}
+            </div>
+          )}
         </div>
+
         <p className="text-[12px] leading-relaxed mb-3" style={{ color: 'hsl(215, 25%, 15%)' }}>
           {step.instruction}
         </p>
+
+        {/* Validation type indicator */}
+        {step.validation && (
+          <div className="mb-3 px-2 py-1 rounded text-[10px]" style={{ background: 'hsl(210, 30%, 96%)', color: 'hsl(210, 15%, 45%)' }}>
+            <span className="font-semibold">Check: </span>
+            {step.validation.type === 'navigate' && `Navigate to ${step.validation.target} tab`}
+            {step.validation.type === 'create' && `Create object in ${step.validation.target}`}
+            {step.validation.type === 'update' && `Update object in ${step.validation.target}`}
+            {step.validation.type === 'field_check' && `Verify field values in ${step.validation.target}`}
+            {step.validation.type === 'count_check' && `Check ${step.validation.target} count`}
+            {step.validation.type === 'rule_position' && `Verify rule ordering in ${step.validation.target}`}
+            {step.validation.type === 'committed' && `Perform a commit`}
+            {step.validation.type === 'disabled' && `Disable rule in ${step.validation.target}`}
+            {step.validation.type === 'exists' && `Verify exists in ${step.validation.target}`}
+          </div>
+        )}
 
         {/* Navigate button */}
         {step.navigateTo && activeTab !== step.navigateTo.tab && (
@@ -158,24 +204,15 @@ export const LabPanel = ({
             className="flex-1 py-1.5 text-[11px] font-medium rounded"
             style={{ background: 'hsl(100, 45%, 45%)', color: 'hsl(0, 0%, 100%)' }}
           >
-            {currentStep < lab.steps.length - 1 ? 'Next Step' : allDone ? '✓ Lab Complete' : 'Next Step'}
-          </button>
-        ) : step.validation?.type === 'manual' ? (
-          <button
-            onClick={handleMarkComplete}
-            className="flex-1 py-1.5 text-[11px] font-medium rounded"
-            style={{ background: 'hsl(210, 70%, 50%)', color: 'hsl(0, 0%, 100%)' }}
-          >
-            Mark Complete
+            {currentStep < lab.steps.length - 1 ? 'Next Step →' : allDone ? '✓ Lab Complete' : 'Next Step →'}
           </button>
         ) : (
-          <button
-            onClick={handleCheck}
-            className="flex-1 py-1.5 text-[11px] font-medium rounded"
-            style={{ background: 'hsl(210, 70%, 50%)', color: 'hsl(0, 0%, 100%)' }}
+          <div
+            className="flex-1 py-1.5 text-[11px] font-medium rounded text-center"
+            style={{ background: 'hsl(210, 15%, 93%)', color: 'hsl(210, 10%, 50%)' }}
           >
-            ✓ Check Step
-          </button>
+            Complete the action above...
+          </div>
         )}
 
         <button
