@@ -11,6 +11,7 @@ const navTabs = [
   { id: 'objects', label: 'Objects' },
   { id: 'network', label: 'Network' },
   { id: 'device', label: 'Device' },
+  { id: 'labs', label: 'Labs' },
 ];
 
 interface PanHeaderProps {
