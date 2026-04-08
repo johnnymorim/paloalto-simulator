@@ -1,5 +1,5 @@
 import { useFirewall } from '@/contexts/FirewallContext';
-import { Activity, Cpu, HardDrive, Shield, Globe, Wifi } from 'lucide-react';
+import { Activity, Cpu, HardDrive, Shield, Globe, Wifi, Key, Zap, BarChart3 } from 'lucide-react';
 
 const GaugeWidget = ({ label, value, max, unit, color }: { label: string; value: number; max: number; unit: string; color: string }) => {
   const pct = Math.round((value / max) * 100);
@@ -27,7 +27,7 @@ const GaugeWidget = ({ label, value, max, unit, color }: { label: string; value:
 };
 
 export const DashboardPage = () => {
-  const { systemInfo, securityRules, interfaces, threatLogs, trafficLogs } = useFirewall();
+  const { systemInfo, securityRules, interfaces, threatLogs, trafficLogs, licenses } = useFirewall();
 
   const topApps = [
     { name: 'ssl', sessions: 4521, bytes: '2.3 GB', risk: 3 },
@@ -42,7 +42,7 @@ export const DashboardPage = () => {
 
   return (
     <div className="p-4 space-y-4 overflow-auto panos-scrollbar" style={{ background: 'hsl(210, 15%, 97%)' }}>
-      {/* General Info */}
+      {/* General Info + System Resources */}
       <div className="grid grid-cols-4 gap-3">
         <div className="col-span-2 p-3 border rounded" style={{ background: 'hsl(0, 0%, 100%)', borderColor: 'hsl(214, 20%, 82%)' }}>
           <div className="flex items-center gap-2 mb-2">
@@ -69,15 +69,14 @@ export const DashboardPage = () => {
             ))}
           </div>
         </div>
-
         <GaugeWidget label="CPU" value={systemInfo.cpuUsage} max={100} unit="%" color="hsl(207, 80%, 52%)" />
         <GaugeWidget label="Memory" value={systemInfo.memoryUsage} max={100} unit="%" color="hsl(100, 55%, 53%)" />
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         <GaugeWidget label="Active Sessions" value={systemInfo.sessionCount} max={systemInfo.maxSessions} unit="sessions" color="hsl(30, 90%, 55%)" />
 
-        {/* Interfaces Summary */}
+        {/* Interface Status */}
         <div className="p-3 border rounded" style={{ background: 'hsl(0, 0%, 100%)', borderColor: 'hsl(214, 20%, 82%)' }}>
           <div className="flex items-center gap-2 mb-2">
             <Wifi className="w-4 h-4" style={{ color: 'hsl(207, 80%, 52%)' }} />
@@ -88,12 +87,33 @@ export const DashboardPage = () => {
               <div key={iface.name} className="flex items-center justify-between text-[11px] py-0.5">
                 <span style={{ color: 'hsl(215, 25%, 15%)' }}>{iface.name}</span>
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full"
-                        style={{ background: iface.linkState === 'up' ? 'hsl(100, 55%, 53%)' : 'hsl(0, 0%, 70%)' }} />
+                  <span className="w-2 h-2 rounded-full" style={{ background: iface.linkState === 'up' ? 'hsl(100, 55%, 53%)' : 'hsl(0, 0%, 70%)' }} />
                   <span className="text-[10px]" style={{ color: 'hsl(215, 10%, 45%)' }}>{iface.linkState}</span>
                 </span>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* HA Status */}
+        <div className="p-3 border rounded" style={{ background: 'hsl(0, 0%, 100%)', borderColor: 'hsl(214, 20%, 82%)' }}>
+          <div className="flex items-center gap-2 mb-2">
+            <Zap className="w-4 h-4" style={{ color: 'hsl(207, 80%, 52%)' }} />
+            <span className="text-[12px] font-semibold" style={{ color: 'hsl(215, 25%, 15%)' }}>High Availability</span>
+          </div>
+          <div className="space-y-1 text-[11px]">
+            <div className="flex justify-between py-0.5">
+              <span style={{ color: 'hsl(215, 10%, 45%)' }}>Local:</span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ background: 'hsl(100, 55%, 90%)', color: 'hsl(100, 55%, 30%)' }}>{systemInfo.haState}</span>
+            </div>
+            <div className="flex justify-between py-0.5">
+              <span style={{ color: 'hsl(215, 10%, 45%)' }}>Peer:</span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ background: 'hsl(207, 80%, 92%)', color: 'hsl(207, 80%, 35%)' }}>{systemInfo.haPeerState}</span>
+            </div>
+            <div className="flex justify-between py-0.5">
+              <span style={{ color: 'hsl(215, 10%, 45%)' }}>Mode:</span>
+              <span className="font-medium" style={{ color: 'hsl(215, 25%, 15%)' }}>Active/Passive</span>
+            </div>
           </div>
         </div>
 
@@ -113,13 +133,38 @@ export const DashboardPage = () => {
               <span className="font-medium" style={{ color: 'hsl(100, 55%, 40%)' }}>{securityRules.filter(r => !r.disabled).length}</span>
             </div>
             <div className="flex justify-between py-0.5">
-              <span style={{ color: 'hsl(215, 10%, 45%)' }}>Disabled Rules:</span>
-              <span className="font-medium" style={{ color: 'hsl(30, 90%, 55%)' }}>{securityRules.filter(r => r.disabled).length}</span>
-            </div>
-            <div className="flex justify-between py-0.5">
               <span style={{ color: 'hsl(215, 10%, 45%)' }}>Threats Blocked:</span>
               <span className="font-medium" style={{ color: 'hsl(0, 72%, 51%)' }}>{threatLogs.filter(t => t.action !== 'alert').length}</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Logging Rate + Licenses */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="p-3 border rounded" style={{ background: 'hsl(0, 0%, 100%)', borderColor: 'hsl(214, 20%, 82%)' }}>
+          <div className="flex items-center gap-2 mb-2">
+            <BarChart3 className="w-4 h-4" style={{ color: 'hsl(207, 80%, 52%)' }} />
+            <span className="text-[12px] font-semibold" style={{ color: 'hsl(215, 25%, 15%)' }}>Logging Rate</span>
+          </div>
+          <div className="text-[24px] font-bold" style={{ color: 'hsl(215, 25%, 15%)' }}>{systemInfo.loggingRate.toLocaleString()}</div>
+          <div className="text-[11px]" style={{ color: 'hsl(215, 10%, 45%)' }}>logs/sec</div>
+        </div>
+        <div className="p-3 border rounded" style={{ background: 'hsl(0, 0%, 100%)', borderColor: 'hsl(214, 20%, 82%)' }}>
+          <div className="flex items-center gap-2 mb-2">
+            <Key className="w-4 h-4" style={{ color: 'hsl(207, 80%, 52%)' }} />
+            <span className="text-[12px] font-semibold" style={{ color: 'hsl(215, 25%, 15%)' }}>Licenses</span>
+          </div>
+          <div className="space-y-1 text-[11px]">
+            {licenses.slice(0, 4).map(l => (
+              <div key={l.feature} className="flex justify-between py-0.5">
+                <span style={{ color: 'hsl(215, 25%, 15%)' }}>{l.feature}</span>
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{
+                  background: l.expired ? 'hsl(0, 72%, 92%)' : 'hsl(100, 55%, 90%)',
+                  color: l.expired ? 'hsl(0, 72%, 40%)' : 'hsl(100, 55%, 30%)',
+                }}>{l.expired ? 'Expired' : 'Active'}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>

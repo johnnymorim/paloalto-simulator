@@ -17,17 +17,27 @@ const sidebarItems: SidebarItem[] = [
   ]},
   { id: 'zones', label: 'Zones' },
   { id: 'vlans', label: 'VLANs' },
+  { id: 'virtual-wires', label: 'Virtual Wires' },
   { id: 'virtual-routers', label: 'Virtual Routers' },
   { id: 'ipsec-tunnels', label: 'IPSec Tunnels' },
   { id: 'ike-gateways', label: 'IKE Gateways' },
   { id: 'ike-crypto', label: 'IKE Crypto' },
   { id: 'ipsec-crypto', label: 'IPSec Crypto' },
   { id: 'gre-tunnels', label: 'GRE Tunnels' },
+  { id: 'qos', label: 'QoS' },
+  { id: 'lldp', label: 'LLDP' },
   { id: 'dhcp', label: 'DHCP' },
   { id: 'dns-proxy', label: 'DNS Proxy' },
+  { id: 'globalprotect', label: 'GlobalProtect', children: [
+    { id: 'gp-portals', label: 'Portals' },
+    { id: 'gp-gateways', label: 'Gateways' },
+    { id: 'gp-mdm', label: 'MDM' },
+  ]},
   { id: 'network-profiles', label: 'Network Profiles', children: [
     { id: 'interface-mgmt', label: 'Interface Mgmt' },
     { id: 'zone-protection', label: 'Zone Protection' },
+    { id: 'monitor-profile', label: 'Monitor' },
+    { id: 'decryption-np', label: 'Decryption Profile' },
   ]},
 ];
 
@@ -39,12 +49,8 @@ export const NetworkPage = () => {
   const [showAddZone, setShowAddZone] = useState(false);
   const [editingRoute, setEditingRoute] = useState<StaticRoute | null>(null);
   const [showAddRoute, setShowAddRoute] = useState(false);
-
-  // Zone form state
-  const [zoneForm, setZoneForm] = useState<Zone>({ name: '', type: 'Layer3', interfaces: [], zoneProtectionProfile: '', logSetting: 'default' });
-  // Route form state
+  const [zoneForm, setZoneForm] = useState<Zone>({ name: '', type: 'Layer3', interfaces: [], zoneProtectionProfile: '', logSetting: 'default', enableUserIdentification: false });
   const [routeForm, setRouteForm] = useState<StaticRoute>({ name: '', destination: '', nextHop: '', interface: '', metric: 10, virtualRouter: 'default' });
-  // Interface form state
   const [ifaceForm, setIfaceForm] = useState<Partial<FirewallInterface>>({});
 
   const renderContent = () => {
@@ -69,10 +75,7 @@ export const NetworkPage = () => {
             ]}
             data={interfaces}
             rowKey={r => r.name}
-            onRowDoubleClick={r => {
-              setEditingInterface(r);
-              setIfaceForm(r);
-            }}
+            onRowDoubleClick={r => { setEditingInterface(r); setIfaceForm(r); }}
           />
         </div>
       );
@@ -82,7 +85,7 @@ export const NetworkPage = () => {
         <div className="p-3 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[12px] font-semibold" style={{ color: 'hsl(215, 25%, 15%)' }}>Security Zones</span>
-            <button onClick={() => { setZoneForm({ name: '', type: 'Layer3', interfaces: [], zoneProtectionProfile: '', logSetting: 'default' }); setShowAddZone(true); }}
+            <button onClick={() => { setZoneForm({ name: '', type: 'Layer3', interfaces: [], zoneProtectionProfile: '', logSetting: 'default', enableUserIdentification: false }); setShowAddZone(true); }}
                     className="flex items-center gap-1 px-2 py-1 text-[11px] rounded"
                     style={{ background: 'hsl(100, 55%, 53%)', color: 'hsl(0, 0%, 100%)' }}>
               <Plus className="w-3 h-3" /> Add
@@ -94,6 +97,7 @@ export const NetworkPage = () => {
               { key: 'type', label: 'Type', width: '100px' },
               { key: 'interfaces', label: 'Interfaces', render: r => r.interfaces.join(', ') },
               { key: 'zoneProtectionProfile', label: 'Zone Protection', width: '160px' },
+              { key: 'enableUserIdentification', label: 'User-ID', width: '60px', render: r => r.enableUserIdentification ? '✓' : '' },
               { key: 'actions', label: '', width: '60px', render: r => (
                 <div className="flex gap-1">
                   <button onClick={() => { setEditingZone(r); setZoneForm(r); }}><Pencil className="w-3 h-3" style={{ color: 'hsl(207, 80%, 52%)' }} /></button>
@@ -147,11 +151,8 @@ export const NetworkPage = () => {
   return (
     <div className="flex flex-1 overflow-hidden">
       <PanSidebar items={sidebarItems} activeItem={activeSidebar} onItemClick={setActiveSidebar} />
-      <div className="flex-1 overflow-auto panos-scrollbar">
-        {renderContent()}
-      </div>
+      <div className="flex-1 overflow-auto panos-scrollbar">{renderContent()}</div>
 
-      {/* Interface Edit Modal */}
       {editingInterface && (
         <PanModal title={`Ethernet Interface — ${editingInterface.name}`} width="550px"
                   onClose={() => setEditingInterface(null)}
@@ -169,9 +170,16 @@ export const NetworkPage = () => {
                 <PanFormField label="IP Address"><PanInput value={ifaceForm.ipAddress || ''} onChange={v => setIfaceForm(f => ({ ...f, ipAddress: v }))} placeholder="x.x.x.x/mask" /></PanFormField>
               </div>
             )},
+            { id: 'ipv6', label: 'IPv6', content: (
+              <div className="p-3 text-[11px]" style={{ color: 'hsl(215, 10%, 45%)' }}>
+                IPv6 is not configured on this interface. Enable IPv6 to configure addresses.
+              </div>
+            )},
             { id: 'advanced', label: 'Advanced', content: (
               <div className="space-y-1">
                 <PanFormField label="Link Speed"><PanInput value={ifaceForm.speed || ''} onChange={v => setIfaceForm(f => ({ ...f, speed: v }))} /></PanFormField>
+                <PanFormField label="MTU"><PanInput value={String(ifaceForm.mtu || 1500)} onChange={v => setIfaceForm(f => ({ ...f, mtu: parseInt(v) || 1500 }))} type="number" /></PanFormField>
+                <PanFormField label="Management Profile"><PanSelect value={ifaceForm.managementProfile || ''} onChange={v => setIfaceForm(f => ({ ...f, managementProfile: v }))} options={[{ value: '', label: 'None' }, { value: 'allow-ping', label: 'allow-ping' }, { value: 'allow-https', label: 'allow-https' }, { value: 'allow-ssh', label: 'allow-ssh' }]} /></PanFormField>
                 <PanFormField label="Comment"><PanInput value={ifaceForm.comment || ''} onChange={v => setIfaceForm(f => ({ ...f, comment: v }))} /></PanFormField>
               </div>
             )},
@@ -179,7 +187,6 @@ export const NetworkPage = () => {
         </PanModal>
       )}
 
-      {/* Zone Modal */}
       {(showAddZone || editingZone) && (
         <PanModal title={editingZone ? `Edit Zone — ${editingZone.name}` : 'Add Zone'} width="450px"
                   onClose={() => { setShowAddZone(false); setEditingZone(null); }}
@@ -192,16 +199,18 @@ export const NetworkPage = () => {
             <PanFormField label="Name" required><PanInput value={zoneForm.name} onChange={v => setZoneForm(f => ({ ...f, name: v }))} disabled={!!editingZone} /></PanFormField>
             <PanFormField label="Type"><PanSelect value={zoneForm.type} onChange={v => setZoneForm(f => ({ ...f, type: v as Zone['type'] }))} options={[{ value: 'Layer3', label: 'Layer3' }, { value: 'Layer2', label: 'Layer2' }, { value: 'Virtual Wire', label: 'Virtual Wire' }]} /></PanFormField>
             <PanFormField label="Zone Protection"><PanInput value={zoneForm.zoneProtectionProfile} onChange={v => setZoneForm(f => ({ ...f, zoneProtectionProfile: v }))} /></PanFormField>
+            <PanFormField label="Enable User Identification">
+              <label className="flex items-center gap-1 text-[11px]"><input type="checkbox" checked={zoneForm.enableUserIdentification} onChange={e => setZoneForm(f => ({ ...f, enableUserIdentification: e.target.checked }))} /> Enable</label>
+            </PanFormField>
           </div>
         </PanModal>
       )}
 
-      {/* Route Modal */}
       {(showAddRoute || editingRoute) && (
         <PanModal title={editingRoute ? `Edit Route — ${editingRoute.name}` : 'Add Static Route'} width="450px"
                   onClose={() => { setShowAddRoute(false); setEditingRoute(null); }}
                   onSave={() => {
-                    if (editingRoute) { /* update not implemented, just close */ }
+                    if (editingRoute) { /* close */ }
                     else addStaticRoute(routeForm);
                     setShowAddRoute(false); setEditingRoute(null);
                   }}>
