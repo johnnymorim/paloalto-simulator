@@ -1,16 +1,35 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from 'react';
+import { FirewallProvider } from '@/contexts/FirewallContext';
+import { PanHeader } from '@/components/panos/PanHeader';
+import { PanFooter } from '@/components/panos/PanFooter';
+import { DashboardPage } from './DashboardPage';
+import { ACCPage } from './ACCPage';
+import { MonitorPage } from './MonitorPage';
+import { PoliciesPage } from './PoliciesPage';
+import { ObjectsPage } from './ObjectsPage';
+import { NetworkPage } from './NetworkPage';
+import { DevicePage } from './DevicePage';
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+const Index = () => {
+  const [activeTab, setActiveTab] = useState('dashboard');
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
-    </div>
+    <FirewallProvider>
+      <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'hsl(210, 15%, 97%)' }}>
+        <PanHeader activeTab={activeTab} onTabChange={setActiveTab} />
+        <div className="flex-1 flex overflow-hidden">
+          {activeTab === 'dashboard' && <DashboardPage />}
+          {activeTab === 'acc' && <ACCPage />}
+          {activeTab === 'monitor' && <MonitorPage />}
+          {activeTab === 'policies' && <PoliciesPage />}
+          {activeTab === 'objects' && <ObjectsPage />}
+          {activeTab === 'network' && <NetworkPage />}
+          {activeTab === 'device' && <DevicePage />}
+        </div>
+        <PanFooter />
+      </div>
+    </FirewallProvider>
   );
 };
-
-const Index = PlaceholderIndex;
 
 export default Index;
