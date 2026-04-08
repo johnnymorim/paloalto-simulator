@@ -9,7 +9,6 @@ import { PoliciesPage } from './PoliciesPage';
 import { ObjectsPage } from './ObjectsPage';
 import { NetworkPage } from './NetworkPage';
 import { DevicePage } from './DevicePage';
-import { LabsPage } from './LabsPage';
 import { LabPanel } from '@/components/panos/LabPanel';
 import { Lab } from '@/data/labData';
 
@@ -47,6 +46,11 @@ const Index = () => {
     const savedSteps = labSteps[lab.id] || [];
     setCompletedSteps(new Set(savedSteps));
     setCurrentStep(0);
+    // Auto-navigate to the first step's target tab
+    const firstStep = lab.steps[0];
+    if (firstStep?.navigateTo?.tab) {
+      setActiveTab(firstStep.navigateTo.tab);
+    }
   }, [labSteps]);
 
   const handleStepComplete = useCallback((step: number) => {
@@ -79,7 +83,13 @@ const Index = () => {
   return (
     <FirewallProvider>
       <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'hsl(210, 15%, 97%)' }}>
-        <PanHeader activeTab={activeTab} onTabChange={setActiveTab} />
+        <PanHeader
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onStartLab={handleStartLab}
+          completedLabs={completedLabs}
+          activeLab={activeLab}
+        />
         <div className="flex-1 flex overflow-hidden">
           <div className="flex-1 flex overflow-hidden">
             {activeTab === 'dashboard' && <DashboardPage />}
@@ -89,7 +99,6 @@ const Index = () => {
             {activeTab === 'objects' && <ObjectsPage />}
             {activeTab === 'network' && <NetworkPage />}
             {activeTab === 'device' && <DevicePage />}
-            {activeTab === 'labs' && <LabsPage completedLabs={completedLabs} onStartLab={handleStartLab} />}
           </div>
           {activeLab && (
             <LabPanel
