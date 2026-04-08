@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { PanSidebar, SidebarItem } from '@/components/panos/PanSidebar';
 import { PanTable } from '@/components/panos/PanTable';
 import { useFirewall } from '@/contexts/FirewallContext';
-import { TrafficLog, ThreatLog } from '@/data/mockData';
+import { TrafficLog, ThreatLog, SystemLog } from '@/data/mockData';
 import { Filter, RefreshCw } from 'lucide-react';
 
 const sidebarItems: SidebarItem[] = [
@@ -12,6 +12,13 @@ const sidebarItems: SidebarItem[] = [
     { id: 'url', label: 'URL Filtering' },
     { id: 'data', label: 'Data Filtering' },
     { id: 'wildfire', label: 'WildFire Submissions' },
+    { id: 'auth-log', label: 'Authentication' },
+    { id: 'userid', label: 'User-ID' },
+    { id: 'hip-match', label: 'HIP Match' },
+    { id: 'iptag', label: 'IP-Tag' },
+    { id: 'tunnel', label: 'Tunnel Inspection' },
+    { id: 'config-log', label: 'Configuration' },
+    { id: 'system-log', label: 'System' },
   ]},
   { id: 'session-browser', label: 'Session Browser' },
   { id: 'packet-capture', label: 'Packet Capture' },
@@ -35,32 +42,28 @@ const severityStyles: Record<string, { bg: string; color: string }> = {
 };
 
 export const MonitorPage = () => {
-  const { trafficLogs, threatLogs } = useFirewall();
+  const { trafficLogs, threatLogs, systemLogs } = useFirewall();
   const [activeSidebar, setActiveSidebar] = useState('traffic');
   const [filterText, setFilterText] = useState('');
 
-  const filteredTraffic = trafficLogs.filter(l =>
-    !filterText || Object.values(l).some(v => String(v).toLowerCase().includes(filterText.toLowerCase()))
-  );
-  const filteredThreats = threatLogs.filter(l =>
-    !filterText || Object.values(l).some(v => String(v).toLowerCase().includes(filterText.toLowerCase()))
-  );
+  const filterFn = (l: any) => !filterText || Object.values(l).some(v => String(v).toLowerCase().includes(filterText.toLowerCase()));
+
+  const filteredTraffic = trafficLogs.filter(filterFn);
+  const filteredThreats = threatLogs.filter(filterFn);
+  const systemLogsFiltered = systemLogs.filter(l => l.type === 'system').filter(filterFn);
+  const configLogsFiltered = systemLogs.filter(l => l.type === 'config').filter(filterFn);
 
   return (
     <div className="flex flex-1 overflow-hidden">
       <PanSidebar items={sidebarItems} activeItem={activeSidebar} onItemClick={setActiveSidebar} />
       <div className="flex-1 overflow-auto panos-scrollbar">
         <div className="p-3 space-y-2">
-          {/* Filter bar */}
           <div className="flex items-center gap-2">
             <Filter className="w-3.5 h-3.5" style={{ color: 'hsl(215, 10%, 45%)' }} />
-            <input
-              value={filterText}
-              onChange={e => setFilterText(e.target.value)}
+            <input value={filterText} onChange={e => setFilterText(e.target.value)}
               placeholder="Filter logs... (e.g. source IP, application, action)"
               className="flex-1 px-2 py-1.5 text-[11px] border rounded"
-              style={{ borderColor: 'hsl(214, 20%, 82%)', color: 'hsl(215, 25%, 15%)' }}
-            />
+              style={{ borderColor: 'hsl(214, 20%, 82%)', color: 'hsl(215, 25%, 15%)' }} />
             <button className="flex items-center gap-1 px-2 py-1.5 text-[11px] rounded border"
                     style={{ borderColor: 'hsl(214, 20%, 82%)', color: 'hsl(215, 25%, 15%)' }}>
               <RefreshCw className="w-3 h-3" /> Refresh
@@ -116,8 +119,52 @@ export const MonitorPage = () => {
             </>
           )}
 
-          {!['traffic', 'threat'].includes(activeSidebar) && (
-            <div className="p-8 text-center text-[12px]" style={{ color: 'hsl(215, 10%, 45%)' }}>Select Traffic or Threat logs from the sidebar.</div>
+          {activeSidebar === 'system-log' && (
+            <>
+              <span className="text-[12px] font-semibold" style={{ color: 'hsl(215, 25%, 15%)' }}>System Logs ({systemLogsFiltered.length})</span>
+              <PanTable<SystemLog>
+                columns={[
+                  { key: 'timestamp', label: 'Time', width: '140px' },
+                  { key: 'subtype', label: 'Subtype', width: '80px' },
+                  { key: 'severity', label: 'Severity', width: '90px', render: r => {
+                    const s = severityStyles[r.severity] || severityStyles.informational;
+                    return <span className="px-1.5 py-0.5 rounded text-[10px] font-medium capitalize" style={{ background: s.bg, color: s.color }}>{r.severity}</span>;
+                  }},
+                  { key: 'description', label: 'Description' },
+                ]}
+                data={systemLogsFiltered}
+                rowKey={r => r.id}
+              />
+            </>
+          )}
+
+          {activeSidebar === 'config-log' && (
+            <>
+              <span className="text-[12px] font-semibold" style={{ color: 'hsl(215, 25%, 15%)' }}>Configuration Logs ({configLogsFiltered.length})</span>
+              <PanTable<SystemLog>
+                columns={[
+                  { key: 'timestamp', label: 'Time', width: '140px' },
+                  { key: 'subtype', label: 'Subtype', width: '80px' },
+                  { key: 'admin', label: 'Admin', width: '80px' },
+                  { key: 'client', label: 'Client', width: '120px' },
+                  { key: 'result', label: 'Result', width: '80px', render: r => (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{
+                      background: r.result === 'success' ? 'hsl(100, 55%, 90%)' : r.result === 'failed' ? 'hsl(0, 72%, 92%)' : 'hsl(210, 10%, 94%)',
+                      color: r.result === 'success' ? 'hsl(100, 55%, 30%)' : r.result === 'failed' ? 'hsl(0, 72%, 40%)' : 'hsl(215, 10%, 45%)',
+                    }}>{r.result}</span>
+                  )},
+                  { key: 'description', label: 'Description' },
+                ]}
+                data={configLogsFiltered}
+                rowKey={r => r.id}
+              />
+            </>
+          )}
+
+          {!['traffic', 'threat', 'system-log', 'config-log'].includes(activeSidebar) && (
+            <div className="p-8 text-center text-[12px]" style={{ color: 'hsl(215, 10%, 45%)' }}>
+              Select a log type from the sidebar to view entries.
+            </div>
           )}
         </div>
       </div>
