@@ -1,188 +1,106 @@
 
 
-# PAN-OS Simulator Accuracy Audit & Enhancement Plan
+# In-App Lab Exercises for PAN-OS Training Simulator
 
-## Research Sources Used
-- Official PAN-OS 11.1 Web Interface Help documentation (docs.paloaltonetworks.com)
-- PAN-OS Building Blocks in Security Policy Rule reference
-- Objects, Network, Device, Monitor tab official documentation
-- Referenced YouTube training video (8-hour comprehensive course)
+## Overview
+Add a **Labs** tab to the simulator with 35 guided, interactive lab exercises. Each lab has step-by-step instructions, objectives, hints, and a validation system that checks whether the student correctly completed the task by inspecting the firewall context state.
 
-## Identified Factual Inaccuracies & Gaps
+## Architecture
 
-### 1. Security Policy Rule Modal — Missing Tabs & Fields
-**Current**: 5 tabs (General, Source, Destination, Application, Actions)
-**Actual PAN-OS**: 7 tabs — General, Source, Destination, Application, **Service/URL Category**, Actions, **Target**
-- Missing **Service/URL Category** tab (separate from Application tab — Service and URL Category are distinct fields)
-- Missing **Target** tab (for Panorama pushed rules — can be a placeholder)
-- Actions tab missing: **Log Forwarding** profile dropdown, **Schedule** dropdown, **QoS Marking** fields, **Disable Server Response Inspection** checkbox
-- Source/Destination tabs missing: **User** field, **Negate** checkbox for source/dest address
-- Missing **Rule Type** dropdown on General tab (universal, intrazone, interzone)
+### New Files
+- **`src/data/labData.ts`** — All 35 lab definitions (title, category, difficulty, objectives, steps with validation checks, hints)
+- **`src/pages/LabsPage.tsx`** — Main labs page with category filtering, progress tracking, and a step-by-step guided panel
+- **`src/components/panos/LabPanel.tsx`** — Slide-out panel that overlays the right side while a lab is active, showing current step instructions, hints, and completion status
+- **`src/components/panos/LabStepValidator.tsx`** — Validation logic component that checks firewall context state against expected outcomes
 
-### 2. Security Rule Table — Missing Columns
-**Current**: #, Name, Source Zone, Source Addr, Dest Zone, Dest Addr, Application, Action, Hits
-**Missing**: Service column, Profile (Security Profile Group) column with profile icons, Options column (log forwarding icon), Source User column
+### Modified Files
+- **`src/pages/Index.tsx`** — Add `labs` tab rendering
+- **`src/components/panos/PanHeader.tsx`** — Add "Labs" to nav tabs
+- **`src/contexts/FirewallContext.tsx`** — Add lab progress state (completed labs, current lab, current step)
 
-### 3. NAT Rule Model — Incorrect Structure
-**Actual PAN-OS NAT modal**: Tabs are **General**, **Original Packet**, **Translated Packet**
-- General tab should have: Name, Description, Tag, NAT Type (ipv4, nat64, nptv6)
-- Original Packet: Source Zone, Destination Zone, Destination Interface, Source Address, Destination Address, Service
-- Translated Packet: Source Translation Type (None, Dynamic IP And Port, Dynamic IP, Static IP), Translated Address/Interface, Bi-directional checkbox; Destination Translation Address and Port
+## Lab Categories & Exercises (35 Total)
 
-### 4. Objects Tab — Missing Sub-sections from Official Docs
-**Current sidebar**: Addresses, Address Groups, Services, Service Groups, Applications, Application Groups, Security Profiles (6 sub), Security Profile Groups, Log Forwarding, Schedules, Tags
-**Missing per official docs**:
-- **Regions** (between Address Groups and Applications)
-- **Application Filters** (after Application Groups)
-- **Devices** 
-- **GlobalProtect > HIP Objects** and **HIP Profiles**
-- **External Dynamic Lists**
-- **Custom Objects** (Spyware, Vulnerability, URL Category)
-- **Authentication** profiles
-- **Decryption Profile**
-- **SD-WAN Link Management**
+### Category 1: Initial Setup & Navigation (5 labs)
+1. **Explore the Dashboard** — Navigate to Dashboard, identify hostname, PAN-OS version, serial number, and system uptime
+2. **System Configuration Basics** — Go to Device > Setup, review management interface IP, DNS, and NTP settings
+3. **Review Licenses** — Navigate to Dashboard, identify active subscription licenses and their expiry dates
+4. **Understanding the ACC** — Switch between Network Activity, Threat Activity, and Blocked Activity sub-tabs
+5. **Navigating Monitor Logs** — Open Traffic logs, apply a filter for a specific source IP, then switch to Threat logs
 
-### 5. Network Tab — Missing/Inaccurate Sidebar Items
-**Current**: Interfaces (Ethernet, Loopback, Tunnel, VLAN), Zones, VLANs, Virtual Routers, IPSec Tunnels, IKE Gateways, IKE/IPSec Crypto, GRE, DHCP, DNS Proxy, Network Profiles (Interface Mgmt, Zone Protection)
-**Missing per official docs**:
-- **Virtual Wires** (separate from interfaces)
-- **QoS** (under Network)
-- **LLDP** 
-- **GlobalProtect** (Portals, Gateways, MDM)
-- Network Profiles should also include: **Monitor**, **Decryption Profile**
+### Category 2: Network & Interfaces (6 labs)
+6. **Configure an Ethernet Interface** — Set ethernet1/3 to Layer3, assign IP 10.10.10.1/24, assign to "trust" zone
+7. **Create a New Security Zone** — Create a "dmz-servers" zone of type Layer3, assign ethernet1/4
+8. **Configure a Virtual Router** — Add a default static route (0.0.0.0/0) with next-hop 203.0.113.1 via ethernet1/1
+9. **Add a Static Route** — Add a route for 172.16.0.0/16 pointing to next-hop 10.10.10.254
+10. **Configure Interface Management Profile** — Review and understand management profiles (HTTP, HTTPS, SSH, Ping)
+11. **Configure DHCP Server** — Navigate to Network > DHCP, understand DHCP relay and server configuration options
 
-### 6. Device Tab — Missing Key Sections
-**Current sidebar**: Mostly correct structure
-**Missing**:
-- **User-ID** (critical for training — User-ID agent config, group mapping)
-- **VM-Series** (if modeling VM)
-- **Config Audit** (under Setup)
-- Setup should have separate sub-items: **Management**, **Operations**, **HSM**, **Services** (DNS, NTP, Proxy), **Interfaces** (management interface)
+### Category 3: Security Policies (8 labs)
+12. **Create a Basic Allow Rule** — Create a rule allowing trust-to-untrust traffic for "web-browsing" application
+13. **Create a Deny Rule** — Block "bittorrent" application from trust zone to any destination
+14. **Application-Based Policy** — Create a rule that allows "ssl", "web-browsing", and "dns" from trust to untrust
+15. **User-Based Policy** — Create a rule with source user "domain\sales-team" allowing "salesforce"
+16. **Service-Specific Rule** — Create a rule allowing tcp/8443 from dmz to trust for a custom application
+17. **Intrazone vs Interzone Rules** — Create an intrazone allow rule for trust zone, then an interzone deny rule
+18. **Rule Ordering & Shadowing** — Identify a shadowed rule by placing a broad rule above a specific one, then fix it
+19. **Policy Optimization** — Review hit counts, identify unused rules, disable a zero-hit rule
 
-### 7. Monitor Tab — Incomplete Log Types
-**Current**: Traffic, Threat, URL Filtering, Data Filtering, WildFire
-**Missing per official docs**:
-- **Authentication** logs
-- **HIP Match** logs  
-- **IP-Tag** logs
-- **User-ID** logs
-- **GTP** logs
-- **Tunnel Inspection** logs
-- **Configuration** logs (audit trail)
-- **System** logs (critical for training)
-- **Unified** logs
+### Category 4: NAT Policies (4 labs)
+20. **Configure Source NAT (DIPP)** — Create a source NAT rule using Dynamic IP And Port for trust-to-untrust traffic
+21. **Configure Static NAT** — Create a static NAT rule for a DMZ web server (1:1 NAT) with bi-directional enabled
+22. **Destination NAT** — Create a DNAT rule translating public IP to private server IP on port 443
+23. **NAT Policy Ordering** — Understand NAT rule evaluation order, place specific rules before general
 
-### 8. Dashboard — Missing Widgets
-**Current**: General Info, System Resources gauges, Top Apps table, Top Sources, Traffic summary, Threats summary
-**Missing/Inaccurate**:
-- **Licenses** widget showing subscription status
-- **High Availability** widget showing HA status/peer
-- **Interface Status** widget with link state indicators
-- **Logging Rate** widget
-- Widget titles should match PAN-OS exactly
+### Category 5: Objects & Profiles (5 labs)
+24. **Create Address Objects** — Create IP Netmask, IP Range, and FQDN address objects for common servers
+25. **Create Address Groups** — Build a static address group "Web-Servers" containing multiple address objects
+26. **Create Custom Service Objects** — Create TCP/8080, TCP/8443, and UDP/5060 service objects
+27. **Create Service Groups** — Group custom services into a "Custom-Web-Ports" service group
+28. **Create Tags** — Create color-coded tags (e.g., "Production-Red", "Dev-Blue") and apply to objects
 
-### 9. ACC Page — Structural Issue
-**Actual PAN-OS ACC**: Uses sub-tabs — **Network Activity**, **Threat Activity**, **Blocked Activity**, **Tunnel Activity**
-- Each sub-tab has multiple widget rings/charts (not just lists)
-- Has time-range selector and **Global Filters** panel
-- Should show donut/ring charts for Applications by Risk, Application Categories
+### Category 6: Security Profiles & Threat Prevention (5 labs)
+29. **Configure Antivirus Profile** — Create an AV profile, set decoder actions for HTTP, SMTP, FTP to "reset-both"
+30. **Configure Anti-Spyware Profile** — Set severity-based actions: critical=reset-both, high=reset-server, medium=alert
+31. **Configure URL Filtering** — Create a URL filtering profile blocking "gambling", "malware", and "phishing" categories
+32. **Apply Security Profile Group** — Create a profile group combining AV, Anti-Spyware, and URL Filtering, then attach to a security rule
+33. **Configure File Blocking** — Create a file blocking profile to block PE, DLL uploads/downloads
 
-### 10. Mock Data Corrections
-- `panosVersion: '10.2.3'` — should be a modern version like `'11.1.4-h1'` to match PAN-OS 11.1 docs being referenced
-- Interface type `'Virtual Wire'` should be `'Virtual Wire'` (correct) but modal shows it as option alongside the actual PAN-OS naming
-- Security profiles should have proper sub-types: WildFire Analysis is missing from the profile type enum
-- Missing `'wildfire-analysis'` in SecurityProfile type union
+### Category 7: Operations & Commit (2 labs)
+34. **Validate and Commit Configuration** — Use the Validate button first, review warnings, then perform a full commit
+35. **Review System and Config Logs** — After a commit, navigate to Monitor > System and Config logs to find the commit entry
 
-### 11. Commit Modal — Missing Features
-**Current**: Simple progress bar
-**Actual PAN-OS Commit**:
-- **Commit Type** dropdown: Commit All, Commit Changes Made by specific admin
-- **Preview Changes** button showing config diff
-- **Validate Commit** button (separate from actual commit)
-- Commit log showing validation warnings (e.g., "Rule 'X' shadows Rule 'Y'")
-- **Force Commit** option
+## Lab Data Structure
+```typescript
+interface Lab {
+  id: string;
+  title: string;
+  category: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  estimatedMinutes: number;
+  objectives: string[];
+  steps: LabStep[];
+}
+interface LabStep {
+  instruction: string;
+  hint?: string;
+  navigateTo?: { tab: string; sidebar?: string };
+  validation?: {
+    type: 'navigate' | 'create' | 'update' | 'exists';
+    target: string; // context path to check
+    expected: any;
+  };
+}
+```
 
----
+## UI Design
+- **Labs Page**: Grid of lab cards grouped by category, with difficulty badges (green/yellow/red), estimated time, and completion checkmarks
+- **Active Lab Panel**: Right-side slide-out panel (350px wide) showing step number, instruction text, hint toggle, "Check" button, and progress dots — stays visible while student navigates other tabs
+- **Progress Tracking**: Stored in localStorage — completed labs, current step per lab
+- **Navigation Hints**: Steps can auto-highlight which tab to navigate to, with a "Go There" button
 
-## Implementation Plan
-
-### Phase 1: Fix Critical Factual Inaccuracies (High Priority)
-
-**Step 1**: Update Security Rule modal to match PAN-OS exactly
-- Add Service/URL Category tab
-- Add Rule Type field (universal/intrazone/interzone)  
-- Add User field to Source tab
-- Add Negate checkboxes
-- Add Log Forwarding, Schedule, QoS to Actions tab
-- Add Service column to rule table
-
-**Step 2**: Fix NAT Rule structure
-- Restructure to General / Original Packet / Translated Packet tabs
-- Add Source Translation Type dropdown (Dynamic IP And Port, Static IP, etc.)
-- Add NAT Type field (ipv4, nat64, nptv6)
-
-**Step 3**: Update mock data
-- PAN-OS version to 11.1.x
-- Add wildfire-analysis to profile types
-- Add more realistic security profile details (per-decoder actions for AV, per-severity actions for anti-spyware)
-
-**Step 4**: Fix Commit modal
-- Add Validate button
-- Add Preview Changes
-- Add commit type selector
-- Show realistic validation warnings
-
-### Phase 2: Complete Missing Sidebar Sections
-
-**Step 5**: Objects tab — add missing sidebar items
-- Regions, Application Filters, External Dynamic Lists, Custom Objects, Decryption Profile, Authentication, HIP Objects/Profiles
-
-**Step 6**: Network tab — add missing items
-- Virtual Wires, QoS, GlobalProtect placeholders
-
-**Step 7**: Monitor tab — add missing log types
-- System, Config, Authentication, HIP Match logs with mock data
-
-**Step 8**: Device tab — add User-ID, Config Audit sections
-
-### Phase 3: ACC & Dashboard Accuracy
-
-**Step 9**: Restructure ACC to use proper sub-tabs (Network Activity, Threat Activity, Blocked Activity)
-- Add ring/donut charts
-- Add time range selector and global filters
-
-**Step 10**: Dashboard widget accuracy
-- Add Licenses, HA Status, Interface Status widgets
-- Match exact PAN-OS widget titles and layout
-
-### Phase 4: Enhanced Interactivity for Training
-
-**Step 11**: Security Profile detail modals
-- Antivirus: per-decoder action dropdowns (HTTP, SMTP, IMAP, POP3, FTP, SMB)
-- Anti-Spyware: severity-based actions (critical/high/medium/low/informational)
-- URL Filtering: category list with action dropdowns (allow/block/alert/continue/override)
-- File Blocking: file type / direction / action table
-
-**Step 12**: Interface edit modal — add Management Profile dropdown, MTU field, IPv6 tab content
-
----
-
-## Technical Approach
-- All changes are frontend-only using existing React Context pattern
-- Expand `mockData.ts` types and default data
-- Update existing page components with corrected sidebar structures
-- Add new sub-components for detailed profile modals
-- No backend changes needed
-
-## File Impact Summary
-- `src/data/mockData.ts` — expand types, fix version data, add profiles detail
-- `src/pages/PoliciesPage.tsx` — fix rule modal tabs, NAT structure, table columns
-- `src/pages/ObjectsPage.tsx` — add missing sidebar items
-- `src/pages/NetworkPage.tsx` — add missing sidebar items
-- `src/pages/MonitorPage.tsx` — add missing log types
-- `src/pages/DevicePage.tsx` — add User-ID, Config Audit
-- `src/pages/ACCPage.tsx` — restructure with proper sub-tabs
-- `src/pages/DashboardPage.tsx` — add missing widgets
-- `src/components/panos/CommitModal.tsx` — add validate/preview features
-- `src/contexts/FirewallContext.tsx` — expand state for new data types
+## Technical Notes
+- Lab validation reads from FirewallContext state (e.g., check if a security rule with specific name/properties exists)
+- No backend needed — progress persisted in localStorage
+- Labs panel coexists with existing sidebar by floating on the right side
+- Adding "Labs" as the 8th nav tab in the header
 
