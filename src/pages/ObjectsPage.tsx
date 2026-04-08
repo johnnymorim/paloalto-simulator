@@ -167,8 +167,8 @@ export const ObjectsPage = () => {
     const tabs = [
       { id: 'general', label: 'General', content: (
         <div className="space-y-1">
-          <PanFormField label="Name"><PanInput value={p.name} disabled /></PanFormField>
-          <PanFormField label="Description"><PanInput value={p.description} disabled /></PanFormField>
+          <PanFormField label="Name"><PanInput value={p.name} onChange={() => {}} disabled /></PanFormField>
+          <PanFormField label="Description"><PanInput value={p.description} onChange={() => {}} disabled /></PanFormField>
         </div>
       )},
     ];
